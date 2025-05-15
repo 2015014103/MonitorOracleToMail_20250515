@@ -3,7 +3,7 @@ C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe app.py
 
 这是一个基于 Flask 开发的简单邮件发送应用程序，支持本地运行和 Vercel 部署。同时包含一个Oracle数据库监控工具，可监控指定表的字段状态并发送告警邮件。
 
-## 项目文件说明
+## 项目文件说明1
 
 | 文件名 | 功能描述 |
 |--------|---------|
