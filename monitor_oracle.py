@@ -155,8 +155,23 @@ def monitor_database():
     
     while True:
         try:
-            if connection is None or not connection.is_connected():
+            # 检查连接是否有效
+            if connection is None:
                 connection = connect_oracle(config)
+            else:
+                try:
+                    # 尝试执行一个简单的查询来检查连接是否有效
+                    cursor = connection.cursor()
+                    cursor.execute("SELECT 1 FROM DUAL")
+                    cursor.close()
+                except cx_Oracle.DatabaseError:
+                    # 如果查询失败，说明连接已断开，需要重新连接
+                    logger.info("数据库连接已断开，尝试重新连接...")
+                    try:
+                        connection.close()
+                    except:
+                        pass
+                    connection = connect_oracle(config)
             
             table_name = config['MONITOR']['table_name']
             field_name = config['MONITOR']['field_name']
