@@ -15,6 +15,7 @@
 | config.ini.example | 配置文件示例，不包含敏感信息，用于GitHub分享 |
 | requirements.txt | 项目依赖列表，用于安装必要的Python包 |
 | vercel.json | Vercel部署配置文件，用于云端部署 |
+| build_exe.py | 用于将Python脚本打包成可执行文件的脚本 |
 
 ## 功能特点
 
@@ -31,6 +32,8 @@
 - 支持多邮箱告警通知
 - 自动提取并发送作业名称和错误日志
 - 自定义检查间隔时间
+- 自动重连机制
+- 完善的日志系统
 
 ## 系统要求
 
@@ -100,23 +103,52 @@
 6. 访问应用：
    打开浏览器访问 http://localhost:8080
 
-## Vercel部署
+## 打包为可执行文件
 
-1. Fork或克隆此仓库到你的GitHub账号
+1. 安装PyInstaller：
+   ```bash
+   pip install pyinstaller
+   ```
 
-2. 在Vercel中配置：
-   - 连接你的GitHub仓库
-   - 选择Python框架
-   - 设置构建命令：`pip install -r requirements.txt`
-   - 设置输出目录：`/`
+2. 运行打包脚本：
+   ```bash
+   python build_exe.py
+   ```
 
-3. 配置环境变量：
-   在Vercel项目设置中添加以下环境变量：
-   - `SMTP_SERVER`
-   - `SMTP_PORT`
-   - `SMTP_USERNAME`
-   - `SMTP_PASSWORD`
-   - `SENDER_EMAIL`
+3. 打包完成后，在生成的目录中会包含：
+   - OracleMonitor.exe（数据库监控工具）
+   - EmailSender.exe（邮件发送器）
+   - config.ini（配置文件）
+   - README.md（说明文档）
+
+## 日志系统说明
+
+### 日志文件位置
+- 日志文件存储在程序运行目录下的 `logs` 文件夹中
+- 主日志文件：`logs/oracle_monitor.log`
+- 日志文件会自动轮转，每个文件最大 10MB，最多保留 5 个备份
+
+### 日志级别
+- INFO：一般信息，如程序启动、检查间隔等
+- ERROR：错误信息，如数据库连接失败、邮件发送失败等
+- DEBUG：调试信息（仅在开发环境启用）
+
+### 查看日志
+```bash
+# Windows
+type logs\oracle_monitor.log
+
+# Linux/Mac
+cat logs/oracle_monitor.log
+```
+
+### 日志内容示例
+```
+2024-03-14 10:00:00,123 - INFO - 开始数据库监控...
+2024-03-14 10:00:00,456 - INFO - 已加载配置文件: config.ini
+2024-03-14 10:00:00,789 - INFO - 成功连接到Oracle数据库
+2024-03-14 10:00:01,234 - INFO - 等待 300 秒后进行下一次检查...
+```
 
 ## Oracle数据库监控使用方法
 
@@ -143,7 +175,11 @@
 
 2. 运行监控工具：
    ```bash
+   # 直接运行Python脚本
    python monitor_oracle.py
+   
+   # 或运行打包后的可执行文件
+   OracleMonitor.exe
    ```
 
 3. 监控处理流程：
@@ -179,6 +215,13 @@
 - 确保已安装cx_Oracle包
 - 验证数据库连接信息是否正确
 - 检查表名和字段名是否存在于数据库中
+- 查看logs目录下的日志文件，了解具体错误原因
+
+### 6. 程序停止运行
+- 检查logs目录下的日志文件，查看是否有错误信息
+- 确认数据库连接是否正常
+- 检查网络连接是否稳定
+- 验证配置文件中的参数是否正确
 
 ## 安全建议
 
@@ -187,16 +230,7 @@
 3. 定期更新依赖包以修复安全漏洞
 4. 使用强密码和授权码
 5. 在生产环境中启用SSL/TLS加密
-
-## 日志说明
-
-应用程序使用Python的logging模块记录日志，包含以下级别：
-- DEBUG：详细的调试信息
-- INFO：一般信息
-- WARNING：警告信息
-- ERROR：错误信息
-
-日志会显示在控制台中，可通过查看日志来诊断问题。
+6. 定期检查日志文件，及时发现潜在问题
 
 ## 贡献指南
 
@@ -204,6 +238,7 @@
 1. 代码符合PEP 8规范
 2. 添加了必要的测试
 3. 更新了相关文档
+4. 添加了适当的日志记录
 
 ## 许可证
 
