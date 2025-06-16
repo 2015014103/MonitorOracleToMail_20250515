@@ -8,13 +8,43 @@ from email.mime.multipart import MIMEMultipart
 import smtplib
 import ssl
 import sys
+from logging.handlers import RotatingFileHandler
 
 # 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+def setup_logging():
+    # 创建logs目录（如果不存在）
+    log_dir = 'logs'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    
+    # 设置日志文件路径
+    log_file = os.path.join(log_dir, 'oracle_monitor.log')
+    
+    # 创建日志处理器
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+    
+    # 设置日志格式
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    
+    # 配置根日志记录器
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(file_handler)
+    
+    # 同时输出到控制台
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+    
+    return root_logger
+
+logger = setup_logging()
 
 def load_config():
     """加载配置文件"""
@@ -121,10 +151,13 @@ def monitor_database():
     """监控数据库主函数"""
     config = load_config()
     check_interval = int(config['MONITOR'].get('check_interval', 300))  # 默认5分钟检查一次
+    connection = None
     
     while True:
         try:
-            connection = connect_oracle(config)
+            if connection is None or not connection.is_connected():
+                connection = connect_oracle(config)
+            
             table_name = config['MONITOR']['table_name']
             field_name = config['MONITOR']['field_name']
             condition_value = config['MONITOR']['condition_value']
@@ -150,14 +183,37 @@ def monitor_database():
                 body = detail_body
                 send_email(config, subject, body, receiver_emails)
 
-            connection.close()
+        except cx_Oracle.DatabaseError as e:
+            logger.error(f"数据库错误: {str(e)}")
+            if connection:
+                try:
+                    connection.close()
+                except:
+                    pass
+            connection = None
+            time.sleep(60)  # 数据库错误后等待1分钟再重试
+            continue
             
         except Exception as e:
-            logger.error(f"监控过程发生错误: {str(e)}")
+            logger.error(f"监控过程发生错误: {str(e)}", exc_info=True)
+            if connection:
+                try:
+                    connection.close()
+                except:
+                    pass
+            connection = None
+            time.sleep(60)  # 其他错误后等待1分钟再重试
+            continue
         
         logger.info(f"等待 {check_interval} 秒后进行下一次检查...")
         time.sleep(check_interval)
 
 if __name__ == '__main__':
-    logger.info("开始数据库监控...")
-    monitor_database() 
+    try:
+        logger.info("开始数据库监控...")
+        monitor_database()
+    except KeyboardInterrupt:
+        logger.info("程序被用户中断")
+    except Exception as e:
+        logger.error(f"程序发生致命错误: {str(e)}", exc_info=True)
+        raise 
